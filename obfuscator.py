@@ -114,14 +114,18 @@ class IdentifierRenamer(ast.NodeTransformer):
     # ── visitors ──
 
     def visit_Name(self, node):
+        # Не трогаем Store внутри класса — это становятся атрибуты класса,
+        # доступные снаружи через ClassName.ATTR (attribute access, не Name).
+        if self._in_class > 0 and isinstance(node.ctx, ast.Store):
+            return node
         if isinstance(node.ctx, (ast.Store, ast.Load, ast.Del)):
             if self._should_rename(node.id):
                 node.id = self._get(node.id)
         return node
 
     def visit_FunctionDef(self, node):
-        # Методы класса вызываются как атрибуты (obj.method()),
-        # поэтому их имена переименовывать нельзя.
+        # Имена методов — атрибуты класса, снаружи вызываются как obj.method(),
+        # поэтому переименовываем только функции вне класса.
         if self._in_class == 0 and self._should_rename(node.name):
             node.name = self._get(node.name)
         # rename args
@@ -132,9 +136,24 @@ class IdentifierRenamer(ast.NodeTransformer):
             node.args.vararg.arg = self._get(node.args.vararg.arg)
         if node.args.kwarg and self._should_rename(node.args.kwarg.arg):
             node.args.kwarg.arg = self._get(node.args.kwarg.arg)
-        return self.generic_visit(node)
+        # Тело функции — локальный скоп: Store здесь можно переименовывать
+        saved = self._in_class
+        self._in_class = 0
+        self.generic_visit(node)
+        self._in_class = saved
+        return node
 
     visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Lambda(self, node):
+        for arg in node.args.args + node.args.posonlyargs + node.args.kwonlyargs:
+            if self._should_rename(arg.arg):
+                arg.arg = self._get(arg.arg)
+        if node.args.vararg and self._should_rename(node.args.vararg.arg):
+            node.args.vararg.arg = self._get(node.args.vararg.arg)
+        if node.args.kwarg and self._should_rename(node.args.kwarg.arg):
+            node.args.kwarg.arg = self._get(node.args.kwarg.arg)
+        return self.generic_visit(node)
 
     def visit_ClassDef(self, node):
         if self._should_rename(node.name):
