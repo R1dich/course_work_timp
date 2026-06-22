@@ -1,5 +1,7 @@
-PyMorph 
+# PyMorph 
 
+
+```
 obfuscator/
 ├── obfuscator.py               ← сам обфускатор
 ├── target.py / target_obf.py   ← тестовый пример
@@ -10,5 +12,6 @@ obfuscator/
     ├── 04_vigenere.py          ← шифр Виженера + частотный анализ
     ├── 05_mini_interpreter.py  ← интерпретатор арифм. выражений (Lexer/Parser)
     └── obf/                    ← обфусцированные версии (все работают корректно)
+```
 
 Все примеры можно запустить через python обфускатор target.py -o out.py, после чего python out.py даёт идентичный с оригиналом вывод.
